@@ -14,6 +14,7 @@ app.service('MultipleViewItService', ['restBaseURLs','$http','$location','$httpP
     vm.getJwt = getJwt;
     vm.fixLink = fixLink;
     vm.getLinkE = getLinkE;
+    vm.displayElementViewIt = false;
 
     function getHkallUrl(item){
       let recId = item.pnx.control.recordid[0];
@@ -107,7 +108,6 @@ app.service('MultipleViewItService', ['restBaseURLs','$http','$location','$httpP
       let params = $httpParamSerializer($location.search());
       params = params.replace('query=','q=').replace('search_scope=','scope=');
       params += '&inst=' + institution +'&skipAuth=true';
-      console.log('111: ' +[params]);
       let clonedItem = angular.copy(item);
 
       let deliveryServiceUrl = '/primo_library/libweb/webservices/rest/primo-explore/v1/pnxs/delivery?'+ params;
@@ -170,7 +170,7 @@ app.service('MultipleViewItService', ['restBaseURLs','$http','$location','$httpP
 
         let instituionList = [];
         let values = {};
-        let delCategories = item.pnx.delivery.delcategory.map(
+        let promiseArray = item.pnx.delivery.delcategory.map(
           (line) => {
             let mapping = {
                  I: 'institution',
@@ -193,7 +193,7 @@ app.service('MultipleViewItService', ['restBaseURLs','$http','$location','$httpP
                   let inst = {}
 
                   if(code === 'Alma-E'){
-                        this.getIframeLink(item,institution).then((link) => {
+                        return this.getIframeLink(item,institution).then((link) => {
                           inst['inst'] = institution;
                           inst['availabilityStatus'] = 'check_holdings';
                           inst['getitLink'] = link;
@@ -203,10 +203,14 @@ app.service('MultipleViewItService', ['restBaseURLs','$http','$location','$httpP
                         });
 
                   }
-    
+                  else{
+                    return $q((resolve)=>{resolve()});
+                  }
               }
         });
-        resolve(instituionList);
+        $q.all(promiseArray).then(()=>{
+          resolve(instituionList);
+        });
       });
 
 

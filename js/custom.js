@@ -21,6 +21,7 @@ app.service('MultipleViewItService', ['restBaseURLs', '$http', '$location', '$ht
   vm.getJwt = getJwt;
   vm.fixLink = fixLink;
   vm.getLinkE = getLinkE;
+  vm.displayElementViewIt = false;
 
   function getHkallUrl(item) {
     var recId = item.pnx.control.recordid[0];
@@ -107,7 +108,6 @@ app.service('MultipleViewItService', ['restBaseURLs', '$http', '$location', '$ht
     var params = $httpParamSerializer($location.search());
     params = params.replace('query=', 'q=').replace('search_scope=', 'scope=');
     params += '&inst=' + institution + '&skipAuth=true';
-    console.log('111: ' + [params]);
     var clonedItem = angular.copy(item);
 
     var deliveryServiceUrl = '/primo_library/libweb/webservices/rest/primo-explore/v1/pnxs/delivery?' + params;
@@ -167,7 +167,7 @@ app.service('MultipleViewItService', ['restBaseURLs', '$http', '$location', '$ht
 
       var instituionList = [];
       var values = {};
-      var delCategories = item.pnx.delivery.delcategory.map(function (line) {
+      var promiseArray = item.pnx.delivery.delcategory.map(function (line) {
         var mapping = {
           I: 'institution',
           V: 'label',
@@ -190,7 +190,7 @@ app.service('MultipleViewItService', ['restBaseURLs', '$http', '$location', '$ht
           var inst = {};
 
           if (code === 'Alma-E') {
-            _this2.getIframeLink(item, institution).then(function (link) {
+            return _this2.getIframeLink(item, institution).then(function (link) {
               inst['inst'] = institution;
               inst['availabilityStatus'] = 'check_holdings';
               inst['getitLink'] = link;
@@ -200,10 +200,16 @@ app.service('MultipleViewItService', ['restBaseURLs', '$http', '$location', '$ht
                 instituionList.push(inst);
               }
             });
+          } else {
+            return $q(function (resolve) {
+              resolve();
+            });
           }
         }
       });
-      resolve(instituionList);
+      $q.all(promiseArray).then(function () {
+        resolve(instituionList);
+      });
     });
   }
 }]);
@@ -291,10 +297,13 @@ app.controller('julacViewItFromOtherInstController', ['angularLoad', 'MultipleVi
   };
 
   function displayExpand() {
-
-    var displayElement = vm.parentCtrl.service.serviceName === 'activate' && (vm.parentCtrl.service.linkElement.links[0].displayText === 'Almaviewit' || vm.parentCtrl.service.linkElement.links[0].displayText === 'Almagetit') && vm.parentCtrl.service.linkElement.links[0].link !== '' && this.otherInstList.length > 0;
+    var displayElement = vm.parentCtrl.service.serviceName === 'activate' && (vm.parentCtrl.service.linkElement.links[0].displayText === 'Almaviewit' || !multipleViewItService.displayElementViewIt && vm.parentCtrl.service.linkElement.links[0].displayText === 'Almagetit') && vm.parentCtrl.service.linkElement.links[0].link !== '' && this.otherInstList.length > 0;
 
     if (displayElement) {
+      if (!multipleViewItService.displayElementViewIt && vm.parentCtrl.service.linkElement.links[0].displayText === 'Almagetit') {
+        return true;
+      }
+      multipleViewItService.displayElementViewIt = true;
       var mainViewItInstitution = vm.parentCtrl.service.linkElement.links[0].oraginization;
     }
     return displayElement;
@@ -304,7 +313,7 @@ app.controller('julacViewItFromOtherInstController', ['angularLoad', 'MultipleVi
 app.component('julacViewItFromOtherInst', {
   bindings: { parentCtrl: '<' },
   controller: 'julacViewItFromOtherInstController',
-  template: '\n\n    <div class="other-instituions-view-ir" ng-if="$ctrl.displayExpand()">\n    <!-- <prm-service-header title="nui.brief.results.tabs.getit_other"></prm-service-header> -->\n\n    <h3 class="medium-uppercase-bold ">\n        <span translate="nui.brief.results.tabs.View_It_In_Other_Institutions_-_Please_Sign_in_Or_Be_On_Campus_To_Access_The_Full_Text"></span>\n    </h3>\n\n      <md-tabs md-dynamic-height md-selected="$ctrl.getSelectedTab()" class="tabs-as-app hidden-tabs">\n          <md-tab label="Institutions List" id="{{$ctrl.TABS.INST_LIST}}">\n              <md-content>\n                  <md-list>\n                      <md-list-item class="md-2-line separate-list-items narrow-list-item" ng-repeat="almaInst in $ctrl.getInstitutions()">\n                          <md-button class="neutralized-button layout-full-width layout-display-flex" ng-click="$ctrl.setSelectedTab($ctrl.TABS.MASHUP); $ctrl.loadMashup(almaInst)">\n                          \t<div layout="row" flex="100" layout-align="space-between center">\n      \t                        <div class="md-list-item-text">\n      \t                            <h3 translate="{{almaInst.inst}}"></h3>\n      \t                            <p>\n              \t                        <span class="availability-status {{almaInst.availabilityStatus}}"\n                                                translate="fulldisplay.availabilty.{{almaInst.availabilityStatus}}">\n              \t                        </span>\n      \t                            </p>\n      \t                        </div>\n\n      \t                        <prm-icon\n      \t                                icon-type="{{$ctrl.opacLocations.rightArrow.type}}"\n      \t                                svg-icon-set="{{$ctrl.opacLocations.rightArrow.iconSet}}"\n      \t                                icon-definition="{{$ctrl.opacLocations.rightArrow.icon}}">\n      \t                        </prm-icon>\n                              </div>\n                          </md-button>\n                      </md-list-item>\n\n                      <!--\n                      <md-button\n                              ng-if="!$ctrl.currLoc.locationNoItems && $ctrl.currLoc.isMore"\n                              class="show-more-button zero-margin"\n                              ng-click="$ctrl.getlocationsItems($ctrl.currLoc, true);"\n                              ng-hide="!$ctrl.currLoc.isMore">\n                          <span translate="fulldisplay.locations.showmore"></span>\n                      </md-button>\n                      -->\n\n                  </md-list>\n              </md-content>\n          </md-tab>\n\n          <md-tab label="Alma Mashup" id="{{$ctrl.TABS.MASHUP}}">\n              <md-button ng-click="$ctrl.setSelectedTab($ctrl.TABS.INST_LIST); $ctrl.unloadMashup()"\n                         class="back-button button-with-icon zero-margin">\n\n                  <prm-icon  icon-type="{{$ctrl.opacLocations.leftArrow.type}}"\n                             svg-icon-set="{{$ctrl.opacLocations.leftArrow.iconSet}}"\n                             icon-definition="{{$ctrl.opacLocations.leftArrow.icon}}">\n                  </prm-icon>\n                  <span translate="nui.getit_other.back"></span>\n              </md-button>\n              <iframe iframe-onload="{{::$ctrl.iframeResize()}}" ng-if="$ctrl.getLinks()" class="mashup-iframe-more" ng-src="{{$ctrl.getLinks()}}" style="width:100%;border:none;"/>\n              </iframe>\n          </md-tab>\n      </md-tabs>\n\n    </div>\n\n\n'
+  template: '\n    <div class="other-instituions-view-ir" ng-if="$ctrl.displayExpand()">\n    <!-- <prm-service-header title="nui.brief.results.tabs.getit_other"></prm-service-header> -->\n\n    <h3 class="medium-uppercase-bold ">\n        <span translate="nui.brief.results.tabs.View_It_In_Other_Institutions_-_Please_Sign_in_Or_Be_On_Campus_To_Access_The_Full_Text"></span>\n    </h3>\n\n      <md-tabs md-dynamic-height md-selected="$ctrl.getSelectedTab()" class="tabs-as-app hidden-tabs">\n          <md-tab label="Institutions List" id="{{$ctrl.TABS.INST_LIST}}">\n              <md-content>\n                  <md-list>\n                      <md-list-item class="md-2-line separate-list-items narrow-list-item" ng-repeat="almaInst in $ctrl.getInstitutions()">\n                          <md-button class="neutralized-button layout-full-width layout-display-flex" ng-click="$ctrl.setSelectedTab($ctrl.TABS.MASHUP); $ctrl.loadMashup(almaInst)">\n                          \t<div layout="row" flex="100" layout-align="space-between center">\n      \t                        <div class="md-list-item-text">\n      \t                            <h3 translate="{{almaInst.inst}}"></h3>\n      \t                            <p>\n              \t                        <span class="availability-status {{almaInst.availabilityStatus}}"\n                                                translate="fulldisplay.availabilty.{{almaInst.availabilityStatus}}">\n              \t                        </span>\n      \t                            </p>\n      \t                        </div>\n\n      \t                        <prm-icon\n      \t                                icon-type="{{$ctrl.opacLocations.rightArrow.type}}"\n      \t                                svg-icon-set="{{$ctrl.opacLocations.rightArrow.iconSet}}"\n      \t                                icon-definition="{{$ctrl.opacLocations.rightArrow.icon}}">\n      \t                        </prm-icon>\n                              </div>\n                          </md-button>\n                      </md-list-item>\n\n                      <!--\n                      <md-button\n                              ng-if="!$ctrl.currLoc.locationNoItems && $ctrl.currLoc.isMore"\n                              class="show-more-button zero-margin"\n                              ng-click="$ctrl.getlocationsItems($ctrl.currLoc, true);"\n                              ng-hide="!$ctrl.currLoc.isMore">\n                          <span translate="fulldisplay.locations.showmore"></span>\n                      </md-button>\n                      -->\n\n                  </md-list>\n              </md-content>\n          </md-tab>\n\n          <md-tab label="Alma Mashup" id="{{$ctrl.TABS.MASHUP}}">\n              <md-button ng-click="$ctrl.setSelectedTab($ctrl.TABS.INST_LIST); $ctrl.unloadMashup()"\n                         class="back-button button-with-icon zero-margin">\n\n                  <prm-icon  icon-type="{{$ctrl.opacLocations.leftArrow.type}}"\n                             svg-icon-set="{{$ctrl.opacLocations.leftArrow.iconSet}}"\n                             icon-definition="{{$ctrl.opacLocations.leftArrow.icon}}">\n                  </prm-icon>\n                  <span translate="nui.getit_other.back"></span>\n              </md-button>\n              <iframe iframe-onload="{{::$ctrl.iframeResize()}}" ng-if="$ctrl.getLinks()" class="mashup-iframe-more" ng-src="{{$ctrl.getLinks()}}" style="width:100%;border:none;"/>\n              </iframe>\n          </md-tab>\n      </md-tabs>\n\n    </div>\n\n\n'
 });
 
 /*

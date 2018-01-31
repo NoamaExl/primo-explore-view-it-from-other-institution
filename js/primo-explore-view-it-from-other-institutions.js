@@ -16,6 +16,7 @@ app.controller('julacViewItFromOtherInstController', [ 'angularLoad','MultipleVi
     vm.unloadMashup = unloadMashup;
     vm.iframeResize = iframeResize;
 
+
     vm.TABS = {
 		      INST_LIST : 0,
 		      MASHUP: 1
@@ -73,23 +74,21 @@ app.controller('julacViewItFromOtherInstController', [ 'angularLoad','MultipleVi
 
 
     function displayExpand(){
-
       let displayElement = vm.parentCtrl.service.serviceName==='activate'
       && (vm.parentCtrl.service.linkElement.links[0].displayText === 'Almaviewit' ||
-          vm.parentCtrl.service.linkElement.links[0].displayText === 'Almagetit')
+          (!multipleViewItService.displayElementViewIt && vm.parentCtrl.service.linkElement.links[0].displayText === 'Almagetit'))
       && vm.parentCtrl.service.linkElement.links[0].link !== ''
       && this.otherInstList.length > 0;
 
       if(displayElement){
+        if(!multipleViewItService.displayElementViewIt && vm.parentCtrl.service.linkElement.links[0].displayText === 'Almagetit'){
+          return true;
+        }
+        multipleViewItService.displayElementViewIt = true;
         let mainViewItInstitution = vm.parentCtrl.service.linkElement.links[0].oraginization;
       }
       return displayElement;
-
     }
-
-
-
-
 }]);
 
 
@@ -100,7 +99,6 @@ app.component('julacViewItFromOtherInst', {
     bindings: {parentCtrl: '<'},
     controller: 'julacViewItFromOtherInstController',
     template: `
-
     <div class="other-instituions-view-ir" ng-if="$ctrl.displayExpand()">
     <!-- <prm-service-header title="nui.brief.results.tabs.getit_other"></prm-service-header> -->
 
