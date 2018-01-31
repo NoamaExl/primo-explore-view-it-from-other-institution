@@ -1,0 +1,14 @@
+/*prm-opac.expanded-location*/
+.expand-location prm-alert-bar{
+    display:none;
+}
+
+prm-opac.expanded-location prm-request-services{
+    display:none;
+}
+
+prm-opac.expanded-location h3.section-title{
+    display:none;
+}
+
+
