@@ -5,7 +5,7 @@ and to vreate the view-it links for each institution
 
 */
 
-app.service('MultipleViewItService', ['restBaseURLs','$http','$location','$httpParamSerializer','$sce','$q',function (restBaseURLs,$http,$location,$httpParamSerializer,$sce,$q) {
+app.service('MultipleViewItService', ['restBaseURLs','$http','$location','$httpParamSerializer','$sce','$q','$stateParams',function (restBaseURLs,$http,$location,$httpParamSerializer,$sce,$q,$stateParams) {
     let vm = this;
     vm.getInstList = getInstList;
     vm.getDeliveryResponse = getDeliveryResponse;
@@ -17,16 +17,82 @@ app.service('MultipleViewItService', ['restBaseURLs','$http','$location','$httpP
     vm.displayElementViewIt = false;
 
     function getHkallUrl(item){
-      let recId = item.pnx.control.recordid[0];
+      let vidToInst={
+        'CUHK':{Inst:'CUHK_ALMA',tab:'hkall_tab',search_scope:'HKALL_PTP2'},
+        'CUH':{Inst:'CUH_ALMA',tab:'default_tab',search_scope:'HKALL'},
+        'EDUHK':{Inst:'EDUHK_ALMA',tab:'default_tab',search_scope:'HKALL'},
+        'HKBU':{Inst:'HKBU_ALMA',tab:'HKALL',search_scope:'HKALL'},
+        'HKPU':{Inst:'HKPU_ALMA',tab:'default_tab',search_scope:'HKALL'},
+        'HKUST':{Inst:'HKUST_ALMA',tab:'default_tab',search_scope:'HKUST_catalog_primo'},
+        'HKU':{Inst:'HKU_ALMA',tab:'HKALL',search_scope:'HKALL'},
+        'HKALL':{Inst:'JULAC_NETWORK',tab:'default_tab',search_scope:'default_scope'},
+        'LUN':{Inst:'LUN_ALMA',tab:'hkall',search_scope:'HKALL'}
+      };
 
-      let frbrGrp = '';
-      let frbrFacet = '';
-      if(item.pnx.facets.frbrgroupid && item.pnx.facets.frbrgroupid[0]){
-        frbrGrp = item.pnx.facets.frbrgroupid[0];
-        frbrFacet = '&facet=frbrgroupid,include,'+frbrGrp
-      }
-      return $sce.trustAsResourceUrl('https://julac.hosted.exlibrisgroup.com/primo-explore/fulldisplay?docid='+recId+'&context=P2P&vid=HKALL&lang=en_US&search_scope=default_scope&adaptor=HKALL_PTP2&tab=default_tab&query=any,contains,'+recId+'&sortby=date&offset=0'+frbrFacet);
 
+      let vid = $location.search()['vid'];
+      let mmsid = item.pnx.control.sourcerecordid[0];
+      let sparams={          vid: $stateParams['vid'],
+                             q: 'any,contains,'+mmsid,
+                             scope: vidToInst[$stateParams['vid']]['search_scope'],
+                             tab: $stateParams['tab'],
+                             sortby: $stateParams['sortby'],
+                             facet: $stateParams['facet'],
+                             mode: $stateParams['mode'],
+                             pfilter: $stateParams['pfilter'],
+                             offset: $stateParams['offset'],
+                             journals: $stateParams['journals'],
+                             databases: $stateParams['databases'],
+                             pcAvailability: $stateParams['pcAvailability'],
+                             inst: vidToInst[$stateParams['vid']]['Inst']
+                         };
+
+
+      let conf = {
+          url: '/primo_library/libweb/webservices/rest/primo-explore/v1/pnxs',
+          method: 'GET',
+          params: sparams
+      };
+      let hkallTab = vidToInst[$stateParams['vid']]['tab'];
+      let hkallScope = vidToInst[$stateParams['vid']]['search_scope'];
+      let searchPromise = $http(conf).then((response) => {
+        let item = response.data.docs;
+        let frbrGrp = '';
+        let frbrFacet = '';
+        if(item[0].pnx.facets.frbrgroupid && item[0].pnx.facets.frbrgroupid[0]){
+          frbrGrp = item[0].pnx.facets.frbrgroupid[0];
+          frbrFacet = 'facet_frbrgroupid,exact,'+frbrGrp
+          conf.params.qInclude = frbrFacet;
+          let searchFrbrPromise = $http(conf).then((response) => {
+            let itemFrbr = response.data.docs;
+            return createHKALLLink(itemFrbr,mmsid,hkallTab,hkallScope);
+          });
+        }
+        return createHKALLLink(item,mmsid,hkallTab,hkallScope);
+
+      });
+      return searchPromise;
+
+
+    }
+
+    function createHKALLLink(item,mmsid,tab,hkallScope){
+      return $q((resolve, reject)=>{
+        item.forEach(function(element){
+          let almaIds = element.pnx.control.almaid;
+          almaIds.forEach(function(almaId){
+            if (almaId.indexOf(':'+mmsid) > -1){
+              let recId = element.pnx.control.recordid[0];
+              if(almaId.indexOf('$$O') > -1){//dedup
+                recId= almaId.split('$$O')[1];                   
+              }
+              let url = $sce.trustAsResourceUrl('https://julac.hosted.exlibrisgroup.com/primo-explore/fulldisplay?docid='+recId+'&context=P2P&vid='+$stateParams['vid']+'&lang=en_US&search_scope='+hkallScope+'&adaptor=HKALL_PTP2&tab='+tab+'&query=any,contains,'+recId+'&sortby=date&offset=0');
+              resolve(url);
+            }
+          })
+        });
+        resolve('');
+      });
     }
 
     function getIframeLink(item,institution){
@@ -103,11 +169,19 @@ app.service('MultipleViewItService', ['restBaseURLs','$http','$location','$httpP
         }
         return linkE;
     }
-    function getDeliveryResponse(item,institution,jwt){
-      let dummy =[];
+
+    function calcParams(institution){
       let params = $httpParamSerializer($location.search());
       params = params.replace('query=','q=').replace('search_scope=','scope=');
-      params += '&inst=' + institution +'&skipAuth=true';
+      if(institution){
+        params += '&inst=' + institution +'&skipAuth=true';
+      }
+      return params;
+
+    }
+    function getDeliveryResponse(item,institution,jwt){
+      let dummy =[];
+      let params = calcParams(institution);
       let clonedItem = angular.copy(item);
 
       let deliveryServiceUrl = '/primo_library/libweb/webservices/rest/primo-explore/v1/pnxs/delivery?'+ params;

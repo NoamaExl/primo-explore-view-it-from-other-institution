@@ -12,7 +12,7 @@ and to vreate the view-it links for each institution
 
 */
 
-app.service('MultipleViewItService', ['restBaseURLs', '$http', '$location', '$httpParamSerializer', '$sce', '$q', function (restBaseURLs, $http, $location, $httpParamSerializer, $sce, $q) {
+app.service('MultipleViewItService', ['restBaseURLs', '$http', '$location', '$httpParamSerializer', '$sce', '$q', '$stateParams', function (restBaseURLs, $http, $location, $httpParamSerializer, $sce, $q, $stateParams) {
   var vm = this;
   vm.getInstList = getInstList;
   vm.getDeliveryResponse = getDeliveryResponse;
@@ -24,15 +24,78 @@ app.service('MultipleViewItService', ['restBaseURLs', '$http', '$location', '$ht
   vm.displayElementViewIt = false;
 
   function getHkallUrl(item) {
-    var recId = item.pnx.control.recordid[0];
+    var vidToInst = {
+      'CUHK': { Inst: 'CUHK_ALMA', tab: 'hkall_tab', search_scope: 'HKALL_PTP2' },
+      'CUH': { Inst: 'CUH_ALMA', tab: 'default_tab', search_scope: 'HKALL' },
+      'EDUHK': { Inst: 'EDUHK_ALMA', tab: 'default_tab', search_scope: 'HKALL' },
+      'HKBU': { Inst: 'HKBU_ALMA', tab: 'HKALL', search_scope: 'HKALL' },
+      'HKPU': { Inst: 'HKPU_ALMA', tab: 'default_tab', search_scope: 'HKALL' },
+      'HKUST': { Inst: 'HKUST_ALMA', tab: 'default_tab', search_scope: 'HKUST_catalog_primo' },
+      'HKU': { Inst: 'HKU_ALMA', tab: 'HKALL', search_scope: 'HKALL' },
+      'HKALL': { Inst: 'JULAC_NETWORK', tab: 'default_tab', search_scope: 'default_scope' },
+      'LUN': { Inst: 'LUN_ALMA', tab: 'hkall', search_scope: 'HKALL' }
+    };
 
-    var frbrGrp = '';
-    var frbrFacet = '';
-    if (item.pnx.facets.frbrgroupid && item.pnx.facets.frbrgroupid[0]) {
-      frbrGrp = item.pnx.facets.frbrgroupid[0];
-      frbrFacet = '&facet=frbrgroupid,include,' + frbrGrp;
-    }
-    return $sce.trustAsResourceUrl('https://julac.hosted.exlibrisgroup.com/primo-explore/fulldisplay?docid=' + recId + '&context=P2P&vid=HKALL&lang=en_US&search_scope=default_scope&adaptor=HKALL_PTP2&tab=default_tab&query=any,contains,' + recId + '&sortby=date&offset=0' + frbrFacet);
+    var vid = $location.search()['vid'];
+    var mmsid = item.pnx.control.sourcerecordid[0];
+    var sparams = { vid: $stateParams['vid'],
+      q: 'any,contains,' + mmsid,
+      scope: vidToInst[$stateParams['vid']]['search_scope'],
+      tab: $stateParams['tab'],
+      sortby: $stateParams['sortby'],
+      facet: $stateParams['facet'],
+      mode: $stateParams['mode'],
+      pfilter: $stateParams['pfilter'],
+      offset: $stateParams['offset'],
+      journals: $stateParams['journals'],
+      databases: $stateParams['databases'],
+      pcAvailability: $stateParams['pcAvailability'],
+      inst: vidToInst[$stateParams['vid']]['Inst']
+    };
+
+    var conf = {
+      url: '/primo_library/libweb/webservices/rest/primo-explore/v1/pnxs',
+      method: 'GET',
+      params: sparams
+    };
+    var hkallTab = vidToInst[$stateParams['vid']]['tab'];
+    var hkallScope = vidToInst[$stateParams['vid']]['search_scope'];
+    var searchPromise = $http(conf).then(function (response) {
+      var item = response.data.docs;
+      var frbrGrp = '';
+      var frbrFacet = '';
+      if (item[0].pnx.facets.frbrgroupid && item[0].pnx.facets.frbrgroupid[0]) {
+        frbrGrp = item[0].pnx.facets.frbrgroupid[0];
+        frbrFacet = 'facet_frbrgroupid,exact,' + frbrGrp;
+        conf.params.qInclude = frbrFacet;
+        var searchFrbrPromise = $http(conf).then(function (response) {
+          var itemFrbr = response.data.docs;
+          return createHKALLLink(itemFrbr, mmsid, hkallTab, hkallScope);
+        });
+      }
+      return createHKALLLink(item, mmsid, hkallTab, hkallScope);
+    });
+    return searchPromise;
+  }
+
+  function createHKALLLink(item, mmsid, tab, hkallScope) {
+    return $q(function (resolve, reject) {
+      item.forEach(function (element) {
+        var almaIds = element.pnx.control.almaid;
+        almaIds.forEach(function (almaId) {
+          if (almaId.indexOf(':' + mmsid) > -1) {
+            var recId = element.pnx.control.recordid[0];
+            if (almaId.indexOf('$$O') > -1) {
+              //dedup
+              recId = almaId.split('$$O')[1];
+            }
+            var url = $sce.trustAsResourceUrl('https://julac.hosted.exlibrisgroup.com/primo-explore/fulldisplay?docid=' + recId + '&context=P2P&vid=' + $stateParams['vid'] + '&lang=en_US&search_scope=' + hkallScope + '&adaptor=HKALL_PTP2&tab=' + tab + '&query=any,contains,' + recId + '&sortby=date&offset=0');
+            resolve(url);
+          }
+        });
+      });
+      resolve('');
+    });
   }
 
   function getIframeLink(item, institution) {
@@ -103,11 +166,18 @@ app.service('MultipleViewItService', ['restBaseURLs', '$http', '$location', '$ht
     }
     return linkE;
   }
-  function getDeliveryResponse(item, institution, jwt) {
-    var dummy = [];
+
+  function calcParams(institution) {
     var params = $httpParamSerializer($location.search());
     params = params.replace('query=', 'q=').replace('search_scope=', 'scope=');
-    params += '&inst=' + institution + '&skipAuth=true';
+    if (institution) {
+      params += '&inst=' + institution + '&skipAuth=true';
+    }
+    return params;
+  }
+  function getDeliveryResponse(item, institution, jwt) {
+    var dummy = [];
+    var params = calcParams(institution);
     var clonedItem = angular.copy(item);
 
     var deliveryServiceUrl = '/primo_library/libweb/webservices/rest/primo-explore/v1/pnxs/delivery?' + params;
@@ -219,20 +289,26 @@ app.controller('julacHKALLLinkController', ['angularLoad', 'MultipleViewItServic
   vm.displayHKALL = displayHKALL;
 
   vm.getHKALLUrl = getHKALLUrl;
+  vm.$onInit = function () {
+    if (vm.displayHKALL()) {
+      multipleViewItService.getHkallUrl(vm.parentCtrl.item).then(function (url) {
+        vm.hkallurl = url;
+      });
+    }
+  };
 
   function displayHKALL() {
     return vm.parentCtrl.service.serviceName === 'activate' && vm.parentCtrl.isMashupLink();
   }
   function getHKALLUrl() {
-
-    return multipleViewItService.getHkallUrl(vm.parentCtrl.item);
+    return vm.hkallurl;
   }
 }]);
 
 app.component('julacLinkToHkall', {
   bindings: { parentCtrl: '<' },
   controller: 'julacHKALLLinkController',
-  template: '\n\n    <md-button class="md-raishkall-link" ng-if="$ctrl.displayHKALL()">\n      <a target="_blank" ng-href="{{$ctrl.getHKALLUrl()}}">\n        Request This item via HKALL\n      </a>\n    </md-button>\n\n\n\n\n\n'
+  template: '\n\n    <md-button class="md-raised hkall-link" ng-if="$ctrl.displayHKALL()">\n      <a target="_blank" ng-href="{{::$ctrl.getHKALLUrl()}}">\n        Request This item via HKALL\n      </a>\n    </md-button>\n\n\n\n\n\n'
 });
 
 /*
@@ -326,6 +402,6 @@ is in development and can be added once completed
 
 app.component('prmFullViewServiceContainerAfter', {
   bindings: { parentCtrl: '<' },
-  template: '\n               <julac-view-it-from-other-inst parent-ctrl="$ctrl.parentCtrl"></julac-view-it-from-other-inst>\n    '
+  template: '\n               <julac-link-to-hkall parent-ctrl="$ctrl.parentCtrl"></julac-link-to-hkall>\n               <julac-view-it-from-other-inst parent-ctrl="$ctrl.parentCtrl"></julac-view-it-from-other-inst>\n    '
 });
 })();
