@@ -206,12 +206,15 @@ app.service('MultipleViewItService', ['restBaseURLs','$http','$location','$httpP
     function calcParams(institution){
         let params = $httpParamSerializer($location.search());
         params = params.replace('query=','q=').replace('search_scope=','scope=');
+        if(params.indexOf("&q=") === -1 && params.indexOf("q=") !== 0){
+            params += '&q=any,contains,'+$location.search().docid;
+        }
         if(institution){
             params += '&inst=' + institution +'&skipAuth=true';
         }
         return params;
-
     }
+    
     function getDeliveryResponse(item,institution,jwt){
         let dummy =[];
         let params = calcParams(institution);
