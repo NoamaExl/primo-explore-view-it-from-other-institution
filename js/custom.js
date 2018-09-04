@@ -4,7 +4,7 @@
 
 function _defineProperty(obj, key, value) { if (key in obj) { Object.defineProperty(obj, key, { value: value, enumerable: true, configurable: true, writable: true }); } else { obj[key] = value; } return obj; }
 
-var app = angular.module('centralCustom', ['angularLoad']);
+var app = angular.module('centralCustom', ['angularLoad']).constant('_', window._);;
 
 /*
  This service holds various methods to fetch the institutions list
@@ -208,7 +208,6 @@ app.service('MultipleViewItService', ['restBaseURLs', '$http', '$location', '$ht
         }
         return params;
     }
-
     function getDeliveryResponse(item, institution, jwt) {
         var dummy = [];
         var params = calcParams(institution);
@@ -332,7 +331,7 @@ app.controller('julacHKALLLinkController', ['angularLoad', 'MultipleViewItServic
     };
 
     function displayHKALL() {
-        return vm.parentCtrl.service.serviceName === 'activate' && vm.parentCtrl.isMashupLink() && vm.parentCtrl.isAlmaGetit();
+        return vm.parentCtrl.service.serviceName === 'activate' && vm.parentCtrl.isMashupLink();
     }
     function getHKALLUrl() {
         return vm.hkallurl;
@@ -342,7 +341,7 @@ app.controller('julacHKALLLinkController', ['angularLoad', 'MultipleViewItServic
 app.component('julacLinkToHkall', {
     bindings: { parentCtrl: '<' },
     controller: 'julacHKALLLinkController',
-    template: '\n\n    <md-button class="md-raised hkall-link" ng-if="$ctrl.displayHKALL() && $ctrl.hkallurl" ng-href="{{::$ctrl.getHKALLUrl()}}" target="_blank">      \n        Request This item via HKALL      \n    </md-button>\n\n\n\n\n\n'
+    template: '\n\n    <md-button class="md-raised hkall-link" ng-if="$ctrl.displayHKALL()">\n      <a target="_blank" ng-href="{{::$ctrl.getHKALLUrl()}}">\n        Request This item via HKALL\n      </a>\n    </md-button>\n\n\n\n\n\n'
 });
 
 /*
@@ -434,12 +433,8 @@ Note:
 is in development and can be added once completed
 */
 
-/*
-app.component('prmFullViewServiceContainerAfter', {
-    bindings: {parentCtrl: '<'},
-    template: `
-               <julac-link-to-hkall parent-ctrl="$ctrl.parentCtrl"></julac-link-to-hkall>
-               <julac-view-it-from-other-inst parent-ctrl="$ctrl.parentCtrl"></julac-view-it-from-other-inst>
-    `
+/*app.component('prmFullViewServiceContainerAfter', {
+    bindings: { parentCtrl: '<' },
+    template: '\n               <julac-link-to-hkall parent-ctrl="$ctrl.parentCtrl"></julac-link-to-hkall>\n               <julac-view-it-from-other-inst parent-ctrl="$ctrl.parentCtrl"></julac-view-it-from-other-inst>\n    '
 });*/
 })();
