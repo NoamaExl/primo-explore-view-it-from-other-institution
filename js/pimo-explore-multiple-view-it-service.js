@@ -15,19 +15,19 @@ app.service('MultipleViewItService', ['restBaseURLs','$http','$location','$httpP
     vm.fixLink = fixLink;
     vm.getLinkE = getLinkE;
     vm.displayElementViewIt = false;
-
+    vm.vidToInst={
+        'CUHK':{Inst:'CUHK_ALMA',tab:'hkall_tab',search_scope:'HKALL_PTP2'},
+        'CUH':{Inst:'CUH_ALMA',tab:'default_tab',search_scope:'HKALL'},
+        'EDUHK':{Inst:'EDUHK_ALMA',tab:'default_tab',search_scope:'HKALL'},
+        'HKBU':{Inst:'HKBU_ALMA',tab:'HKALL',search_scope:'HKALL'},
+        'HKPU':{Inst:'HKPU_ALMA',tab:'default_tab',search_scope:'HKALL'},
+        'HKUST':{Inst:'HKUST_ALMA',tab:'default_tab',search_scope:'HKUST_catalog_primo'},
+        'HKU':{Inst:'HKU_ALMA',tab:'HKALL',search_scope:'HKALL'},
+        'HKALL':{Inst:'JULAC_NETWORK',tab:'default_tab',search_scope:'default_scope'},
+        'LUN':{Inst:'LUN_ALMA',tab:'hkall',search_scope:'HKALL'}
+    };
     function getHkallUrl(item){
-        let vidToInst={
-            'CUHK':{Inst:'CUHK_ALMA',tab:'hkall_tab',search_scope:'HKALL_PTP2'},
-            'CUH':{Inst:'CUH_ALMA',tab:'default_tab',search_scope:'HKALL'},
-            'EDUHK':{Inst:'EDUHK_ALMA',tab:'default_tab',search_scope:'HKALL'},
-            'HKBU':{Inst:'HKBU_ALMA',tab:'HKALL',search_scope:'HKALL'},
-            'HKPU':{Inst:'HKPU_ALMA',tab:'default_tab',search_scope:'HKALL'},
-            'HKUST':{Inst:'HKUST_ALMA',tab:'default_tab',search_scope:'HKUST_catalog_primo'},
-            'HKU':{Inst:'HKU_ALMA',tab:'HKALL',search_scope:'HKALL'},
-            'HKALL':{Inst:'JULAC_NETWORK',tab:'default_tab',search_scope:'default_scope'},
-            'LUN':{Inst:'LUN_ALMA',tab:'hkall',search_scope:'HKALL'}
-        };
+
 
 
         let vid = $location.search()['vid'];
@@ -59,7 +59,7 @@ app.service('MultipleViewItService', ['restBaseURLs','$http','$location','$httpP
         let currentScope = $stateParams['search_scope'];
         let sparams={          vid: $stateParams['vid'],
             q: 'any,contains,'+mmsid,
-            scope: vidToInst[$stateParams['vid']]['search_scope'],
+            scope: vm.vidToInst[$stateParams['vid']]['search_scope'],
             tab: $stateParams['tab'],
             sortby: $stateParams['sortby'],
             facet: $stateParams['facet'],
@@ -69,7 +69,7 @@ app.service('MultipleViewItService', ['restBaseURLs','$http','$location','$httpP
             journals: $stateParams['journals'],
             databases: $stateParams['databases'],
             pcAvailability: $stateParams['pcAvailability'],
-            inst: vidToInst[$stateParams['vid']]['Inst']
+            inst: vm.vidToInst[$stateParams['vid']]['Inst']
         };
 
 
@@ -78,11 +78,14 @@ app.service('MultipleViewItService', ['restBaseURLs','$http','$location','$httpP
             method: 'GET',
             params: sparams
         };
-        let hkallTab = vidToInst[$stateParams['vid']]['tab'];
-        let hkallScope = vidToInst[$stateParams['vid']]['search_scope'];
+        let hkallTab = vm.vidToInst[$stateParams['vid']]['tab'];
+        let hkallScope = vm.vidToInst[$stateParams['vid']]['search_scope'];
 
-        if(currentScope === vidToInst[$stateParams['vid']]['search_scope']){
-            return undefined;
+        if(currentScope === vm.vidToInst[$stateParams['vid']]['search_scope']){
+            return $q((resolve, reject)=>{
+
+            resolve(undefined);
+        });
         }
         let searchPromise = $http(conf).then((response) => {
                 let itemS = response.data.docs;
@@ -119,7 +122,7 @@ app.service('MultipleViewItService', ['restBaseURLs','$http','$location','$httpP
                         if(almaId.indexOf('$$O') > -1){//dedup
                             recId= almaId.split('$$O')[1];
                         }
-                        let url = $sce.trustAsResourceUrl('/primo-explore/fulldisplay?docid='+recId+'&context=P2P&vid='+$stateParams['vid']+'&lang=en_US&search_scope='+hkallScope+'&adaptor=HKALL_PTP&tab='+tab+'&query=any,contains,'+recId+'&sortby=date&offset=0');
+                        let url = $sce.trustAsResourceUrl('/primo-explore/fulldisplay?docid='+recId+'&context=P2P&vid='+$stateParams['vid']+'&lang=en_US&search_scope='+hkallScope+'&adaptor=HKALL_PTP2&tab='+tab+'&query=any,contains,'+recId+'&sortby=date&offset=0');
                         resolve(url);
                     }
                 })

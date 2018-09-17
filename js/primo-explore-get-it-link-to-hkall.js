@@ -25,7 +25,7 @@ app.component('julacLinkToHkall', {
     controller: 'julacHKALLLinkController',
     template: `
 
-    <md-button class="md-raised hkall-link" ng-if="$ctrl.displayHKALL()">
+    <md-button class="md-raised hkall-link" ng-if="$ctrl.displayHKALL() && $ctrl.getHKALLUrl()">
       <a target="_blank" ng-href="{{::$ctrl.getHKALLUrl()}}">
         Request This item via HKALL
       </a>

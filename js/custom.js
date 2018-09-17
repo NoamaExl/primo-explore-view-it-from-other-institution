@@ -22,19 +22,18 @@ app.service('MultipleViewItService', ['restBaseURLs', '$http', '$location', '$ht
     vm.fixLink = fixLink;
     vm.getLinkE = getLinkE;
     vm.displayElementViewIt = false;
-
+    vm.vidToInst = {
+        'CUHK': { Inst: 'CUHK_ALMA', tab: 'hkall_tab', search_scope: 'HKALL_PTP2' },
+        'CUH': { Inst: 'CUH_ALMA', tab: 'default_tab', search_scope: 'HKALL' },
+        'EDUHK': { Inst: 'EDUHK_ALMA', tab: 'default_tab', search_scope: 'HKALL' },
+        'HKBU': { Inst: 'HKBU_ALMA', tab: 'HKALL', search_scope: 'HKALL' },
+        'HKPU': { Inst: 'HKPU_ALMA', tab: 'default_tab', search_scope: 'HKALL' },
+        'HKUST': { Inst: 'HKUST_ALMA', tab: 'default_tab', search_scope: 'HKUST_catalog_primo' },
+        'HKU': { Inst: 'HKU_ALMA', tab: 'HKALL', search_scope: 'HKALL' },
+        'HKALL': { Inst: 'JULAC_NETWORK', tab: 'default_tab', search_scope: 'default_scope' },
+        'LUN': { Inst: 'LUN_ALMA', tab: 'hkall', search_scope: 'HKALL' }
+    };
     function getHkallUrl(item) {
-        var vidToInst = {
-            'CUHK': { Inst: 'CUHK_ALMA', tab: 'hkall_tab', search_scope: 'HKALL_PTP2' },
-            'CUH': { Inst: 'CUH_ALMA', tab: 'default_tab', search_scope: 'HKALL' },
-            'EDUHK': { Inst: 'EDUHK_ALMA', tab: 'default_tab', search_scope: 'HKALL' },
-            'HKBU': { Inst: 'HKBU_ALMA', tab: 'HKALL', search_scope: 'HKALL' },
-            'HKPU': { Inst: 'HKPU_ALMA', tab: 'default_tab', search_scope: 'HKALL' },
-            'HKUST': { Inst: 'HKUST_ALMA', tab: 'default_tab', search_scope: 'HKUST_catalog_primo' },
-            'HKU': { Inst: 'HKU_ALMA', tab: 'HKALL', search_scope: 'HKALL' },
-            'HKALL': { Inst: 'JULAC_NETWORK', tab: 'default_tab', search_scope: 'default_scope' },
-            'LUN': { Inst: 'LUN_ALMA', tab: 'hkall', search_scope: 'HKALL' }
-        };
 
         var vid = $location.search()['vid'];
         var mmsid = item.pnx.control.sourcerecordid[0];
@@ -62,7 +61,7 @@ app.service('MultipleViewItService', ['restBaseURLs', '$http', '$location', '$ht
         var currentScope = $stateParams['search_scope'];
         var sparams = { vid: $stateParams['vid'],
             q: 'any,contains,' + mmsid,
-            scope: vidToInst[$stateParams['vid']]['search_scope'],
+            scope: vm.vidToInst[$stateParams['vid']]['search_scope'],
             tab: $stateParams['tab'],
             sortby: $stateParams['sortby'],
             facet: $stateParams['facet'],
@@ -72,7 +71,7 @@ app.service('MultipleViewItService', ['restBaseURLs', '$http', '$location', '$ht
             journals: $stateParams['journals'],
             databases: $stateParams['databases'],
             pcAvailability: $stateParams['pcAvailability'],
-            inst: vidToInst[$stateParams['vid']]['Inst']
+            inst: vm.vidToInst[$stateParams['vid']]['Inst']
         };
 
         var conf = {
@@ -80,11 +79,14 @@ app.service('MultipleViewItService', ['restBaseURLs', '$http', '$location', '$ht
             method: 'GET',
             params: sparams
         };
-        var hkallTab = vidToInst[$stateParams['vid']]['tab'];
-        var hkallScope = vidToInst[$stateParams['vid']]['search_scope'];
+        var hkallTab = vm.vidToInst[$stateParams['vid']]['tab'];
+        var hkallScope = vm.vidToInst[$stateParams['vid']]['search_scope'];
 
-        if (currentScope === vidToInst[$stateParams['vid']]['search_scope']) {
-            return undefined;
+        if (currentScope === vm.vidToInst[$stateParams['vid']]['search_scope']) {
+            return $q(function (resolve, reject) {
+
+                resolve(undefined);
+            });
         }
         var searchPromise = $http(conf).then(function (response) {
             var itemS = response.data.docs;
@@ -119,7 +121,7 @@ app.service('MultipleViewItService', ['restBaseURLs', '$http', '$location', '$ht
                             //dedup
                             recId = almaId.split('$$O')[1];
                         }
-                        var url = $sce.trustAsResourceUrl('/primo-explore/fulldisplay?docid=' + recId + '&context=P2P&vid=' + $stateParams['vid'] + '&lang=en_US&search_scope=' + hkallScope + '&adaptor=HKALL_PTP&tab=' + tab + '&query=any,contains,' + recId + '&sortby=date&offset=0');
+                        var url = $sce.trustAsResourceUrl('/primo-explore/fulldisplay?docid=' + recId + '&context=P2P&vid=' + $stateParams['vid'] + '&lang=en_US&search_scope=' + hkallScope + '&adaptor=HKALL_PTP2&tab=' + tab + '&query=any,contains,' + recId + '&sortby=date&offset=0');
                         resolve(url);
                     }
                 });
@@ -208,6 +210,7 @@ app.service('MultipleViewItService', ['restBaseURLs', '$http', '$location', '$ht
         }
         return params;
     }
+
     function getDeliveryResponse(item, institution, jwt) {
         var dummy = [];
         var params = calcParams(institution);
@@ -341,7 +344,7 @@ app.controller('julacHKALLLinkController', ['angularLoad', 'MultipleViewItServic
 app.component('julacLinkToHkall', {
     bindings: { parentCtrl: '<' },
     controller: 'julacHKALLLinkController',
-    template: '\n\n    <md-button class="md-raised hkall-link" ng-if="$ctrl.displayHKALL()">\n      <a target="_blank" ng-href="{{::$ctrl.getHKALLUrl()}}">\n        Request This item via HKALL\n      </a>\n    </md-button>\n\n\n\n\n\n'
+    template: '\n\n    <md-button class="md-raised hkall-link" ng-if="$ctrl.displayHKALL() && $ctrl.getHKALLUrl()">\n      <a target="_blank" ng-href="{{::$ctrl.getHKALLUrl()}}">\n        Request This item via HKALL\n      </a>\n    </md-button>\n\n\n\n\n\n'
 });
 
 /*
@@ -425,16 +428,69 @@ app.component('julacViewItFromOtherInst', {
     template: '\n    <div class="other-instituions-view-ir" ng-if="$ctrl.displayExpand()">\n    <!-- <prm-service-header title="nui.brief.results.tabs.getit_other"></prm-service-header> -->\n\n    <h3 class="medium-uppercase-bold ">\n        <span translate="nui.brief.results.tabs.View_It_In_Other_Institutions_-_Please_Sign_in_Or_Be_On_Campus_To_Access_The_Full_Text"></span>\n    </h3>\n\n      <md-tabs md-dynamic-height md-selected="$ctrl.getSelectedTab()" class="tabs-as-app hidden-tabs">\n          <md-tab label="Institutions List" id="{{$ctrl.TABS.INST_LIST}}">\n              <md-content>\n                  <md-list>\n                      <md-list-item class="md-2-line separate-list-items narrow-list-item" ng-repeat="almaInst in $ctrl.getInstitutions()">\n                          <md-button class="neutralized-button layout-full-width layout-display-flex" ng-click="$ctrl.setSelectedTab($ctrl.TABS.MASHUP); $ctrl.loadMashup(almaInst)">\n                          \t<div layout="row" flex="100" layout-align="space-between center">\n      \t                        <div class="md-list-item-text">\n      \t                            <h3 translate="{{almaInst.inst}}"></h3>\n      \t                            <p>\n              \t                        <span class="availability-status {{almaInst.availabilityStatus}}"\n                                                translate="fulldisplay.availabilty.{{almaInst.availabilityStatus}}">\n              \t                        </span>\n      \t                            </p>\n      \t                        </div>\n\n      \t                        <prm-icon\n      \t                                icon-type="{{$ctrl.opacLocations.rightArrow.type}}"\n      \t                                svg-icon-set="{{$ctrl.opacLocations.rightArrow.iconSet}}"\n      \t                                icon-definition="{{$ctrl.opacLocations.rightArrow.icon}}">\n      \t                        </prm-icon>\n                              </div>\n                          </md-button>\n                      </md-list-item>\n\n                      <!--\n                      <md-button\n                              ng-if="!$ctrl.currLoc.locationNoItems && $ctrl.currLoc.isMore"\n                              class="show-more-button zero-margin"\n                              ng-click="$ctrl.getlocationsItems($ctrl.currLoc, true);"\n                              ng-hide="!$ctrl.currLoc.isMore">\n                          <span translate="fulldisplay.locations.showmore"></span>\n                      </md-button>\n                      -->\n\n                  </md-list>\n              </md-content>\n          </md-tab>\n\n          <md-tab label="Alma Mashup" id="{{$ctrl.TABS.MASHUP}}">\n              <md-button ng-click="$ctrl.setSelectedTab($ctrl.TABS.INST_LIST); $ctrl.unloadMashup()"\n                         class="back-button button-with-icon zero-margin">\n\n                  <prm-icon  icon-type="{{$ctrl.opacLocations.leftArrow.type}}"\n                             svg-icon-set="{{$ctrl.opacLocations.leftArrow.iconSet}}"\n                             icon-definition="{{$ctrl.opacLocations.leftArrow.icon}}">\n                  </prm-icon>\n                  <span translate="nui.getit_other.back"></span>\n              </md-button>\n              <iframe iframe-onload="{{::$ctrl.iframeResize()}}" ng-if="$ctrl.getLinks()" class="mashup-iframe-more" ng-src="{{$ctrl.getLinks()}}" style="width:100%;border:none;"/>\n              </iframe>\n          </md-tab>\n      </md-tabs>\n\n    </div>\n\n\n'
 });
 
-/*
-The definition for the after directive that is implemnted in the other
+app.controller('julacAddHkallInfoToOpenurlController', ['MultipleViewItService', '$location', function (multipleViewItService, $location) {
+    var vm = this;
+
+    vm.$onInit = function () {
+        var _this3 = this;
+
+        this.parentCtrl.$rootScope.$watch(function () {
+            return _this3.parentCtrl.item;
+        }, function (newVal) {
+            if (newVal && newVal.delivery.GetIt1 && newVal.delivery.GetIt1.length > 0 && newVal.delivery.GetIt1[0].links && newVal.delivery.GetIt1[0].links.length > 0) {
+                var linkElement = newVal.delivery.GetIt1[0].links[0];
+                if (linkElement.displayText === 'Almaviewit' || linkElement.displayText === 'Almagetit') {
+                    if (linkElement.link.indexOf('hkall=true') === -1) {
+                        //if scope is hkall
+                        var vidFromlocation = $location.search()['vid'];
+                        var vidscopeFromLocation = $location.search()['search_scope'];
+                        if (multipleViewItService.vidToInst[vidFromlocation].search_scope === vidscopeFromLocation) {
+                            linkElement.link += '&hkall=true';
+                        }
+                    }
+                }
+            } else {}
+        });
+        this.parentCtrl.$rootScope.$watch(function () {
+            return _this3.parentCtrl.item;
+        }, function (newVal) {
+            if (newVal && newVal.delivery.GetIt2 && newVal.delivery.GetIt2.length > 0 && newVal.delivery.GetIt2[0].links && newVal.delivery.GetIt2[0].links.length > 0) {
+                var linkElement = newVal.delivery.GetIt2[0].links[0];
+                if (linkElement.displayText === 'Almaviewit' || linkElement.displayText === 'Almagetit') {
+                    if (linkElement.link.indexOf('hkall=true') === -1) {
+                        //if scope is hkall
+                        var vidFromlocation = $location.search()['vid'];
+                        var vidscopeFromLocation = $location.search()['search_scope'];
+                        if (multipleViewItService.vidToInst[vidFromlocation].search_scope === vidscopeFromLocation) {
+                            linkElement.link += '&hkall=true';
+                        }
+                    }
+                }
+            } else {}
+        });
+    };
+}]);
+
+app.component('julacAddHkallInfoToOpenurl', {
+    bindings: { parentCtrl: '<' },
+    controller: 'julacAddHkallInfoToOpenurlController',
+    template: '\n\n'
+});
+
+/*The definition for the after directive that is implemnted in the other
 component
 Note:
 <julac-link-to-hkall parent-ctrl="$ctrl.parentCtrl"></julac-link-to-hkall>
-is in development and can be added once completed
-*/
+<julac-view-it-from-other-inst parent-ctrl="$ctrl.parentCtrl"></julac-view-it-from-other-inst>
+<julac-add-hkall-info-to-openurl parent-ctrl="$ctrl.parentCtrl"></julac-add-hkall-info-to-openurl>
+are developments you can use here if you are inheriting from CENTRAL_PACKAGE*/
 
 /*app.component('prmFullViewServiceContainerAfter', {
-    bindings: { parentCtrl: '<' },
-    template: '\n               <julac-link-to-hkall parent-ctrl="$ctrl.parentCtrl"></julac-link-to-hkall>\n               <julac-view-it-from-other-inst parent-ctrl="$ctrl.parentCtrl"></julac-view-it-from-other-inst>\n    '
+    bindings: {parentCtrl: '<'},
+    template: `
+               <julac-link-to-hkall parent-ctrl="$ctrl.parentCtrl"></julac-link-to-hkall>
+               <julac-view-it-from-other-inst parent-ctrl="$ctrl.parentCtrl"></julac-view-it-from-other-inst>
+               <julac-add-hkall-info-to-openurl parent-ctrl="$ctrl.parentCtrl"></julac-add-hkall-info-to-openurl> 
+    `
 });*/
 })();
