@@ -1,5 +1,5 @@
 
 
-var app = angular.module('viewCustom', ['angularLoad']).constant('_', window._);;
+var app = angular.module('centralCustom', ['angularLoad']).constant('_', window._);;
 
 

@@ -3,15 +3,20 @@ app.controller('julacHKALLLinkController', [ 'angularLoad','MultipleViewItServic
   vm.displayHKALL = displayHKALL;
 
   vm.getHKALLUrl = getHKALLUrl;
+  vm.$onInit = function () {
+    if(vm.displayHKALL()){      
+      multipleViewItService.getHkallUrl(vm.parentCtrl.item).then((url)=>{
+        vm.hkallurl = url;
+      });
+    }
 
+  }
 
   function displayHKALL(){
-    return vm.parentCtrl.service.serviceName==='activate' && vm.parentCtrl.isMashupLink();
+    return vm.parentCtrl.service.serviceName==='activate' && vm.parentCtrl.isMashupLink() ;
   }
   function getHKALLUrl(){
-
-    return multipleViewItService.getHkallUrl(vm.parentCtrl.item);
-
+    return vm.hkallurl;
   }
 }]);
 
@@ -20,8 +25,8 @@ app.component('julacLinkToHkall', {
     controller: 'julacHKALLLinkController',
     template: `
 
-    <md-button class="md-raishkall-link" ng-if="$ctrl.displayHKALL()">
-      <a target="_blank" ng-href="{{$ctrl.getHKALLUrl()}}">
+    <md-button class="md-raised hkall-link" ng-if="$ctrl.displayHKALL() && $ctrl.getHKALLUrl()">
+      <a target="_blank" ng-href="{{::$ctrl.getHKALLUrl()}}">
         Request This item via HKALL
       </a>
     </md-button>
